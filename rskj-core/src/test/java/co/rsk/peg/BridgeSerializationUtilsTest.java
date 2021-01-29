@@ -24,6 +24,8 @@ import co.rsk.bitcoinj.script.ScriptBuilder;
 import co.rsk.config.BridgeConstants;
 import co.rsk.config.BridgeRegTestConstants;
 import co.rsk.core.RskAddress;
+import co.rsk.peg.bitcoin.CoinbaseInformation;
+import co.rsk.peg.utils.MerkleTreeUtils;
 import co.rsk.peg.fastbridge.FastBridgeFederationInformation;
 import co.rsk.peg.whitelist.LockWhitelist;
 import co.rsk.peg.whitelist.LockWhitelistEntry;
@@ -35,9 +37,13 @@ import org.bouncycastle.util.encoders.Hex;
 import org.ethereum.crypto.ECKey;
 import org.ethereum.util.ByteUtil;
 import org.ethereum.util.RLP;
+import org.ethereum.util.RLPElement;
 import org.ethereum.util.RLPList;
 import org.junit.Assert;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.powermock.core.classloader.annotations.PrepareForTest;
+import org.powermock.modules.junit4.PowerMockRunner;
 
 import java.math.BigInteger;
 import java.nio.charset.StandardCharsets;
@@ -51,8 +57,10 @@ import static org.hamcrest.CoreMatchers.nullValue;
 import static org.hamcrest.Matchers.*;
 import static org.junit.Assert.assertEquals;
 import static org.mockito.Mockito.mock;
-import static org.powermock.api.mockito.PowerMockito.when;
+import static org.powermock.api.mockito.PowerMockito.*;
 
+@RunWith(PowerMockRunner.class)
+@PrepareForTest(RLP.class)
 public class BridgeSerializationUtilsTest {
 
     @Test
@@ -1170,6 +1178,37 @@ public class BridgeSerializationUtilsTest {
 
             Assert.assertEquals(testFederation, deserializedTestFederation);
         }
+    }
+
+    @Test
+    public void deserializeCoinbaseInformation_dataIsNull_returnsNull() {
+        Assert.assertNull(BridgeSerializationUtils.deserializeCoinbaseInformation(null));
+    }
+
+    @Test
+    public void deserializeCoinbaseInformation_dataContainsInvalidList_throwsRuntimeException() {
+        byte[] firstItem = RLP.encodeElement(Hex.decode("010101"));
+        byte[] secondItem = RLP.encodeElement(Hex.decode("010102"));
+        byte[] thirdItem = RLP.encodeElement(Hex.decode("010103"));
+        byte[] data = RLP.encodeList(firstItem, secondItem, thirdItem);
+
+        try {
+            BridgeSerializationUtils.deserializeCoinbaseInformation(data);
+            Assert.fail("Runtime exception should be thrown!");
+        } catch (RuntimeException e) {
+            Assert.assertEquals("Invalid serialized coinbase information, expected 1 value but got 3", e.getMessage());
+        }
+    }
+
+    @Test
+    public void deserializeCoinbaseInformation_dataIsValid_returnsValidCoinbaseInformation() {
+        Sha256Hash secondHashTx = Sha256Hash.wrap(Hex.decode("e3d0840a0825fb7d880e5cb8306745352920a8c7e8a30fac882b275e26c6bb65"));
+        Sha256Hash witnessRoot = MerkleTreeUtils.combineLeftRight(Sha256Hash.ZERO_HASH, secondHashTx);
+
+        CoinbaseInformation coinbaseInformation = new CoinbaseInformation(witnessRoot);
+        byte[] serializedCoinbaseInformation = BridgeSerializationUtils.serializeCoinbaseInformation(coinbaseInformation);
+
+        Assert.assertEquals(witnessRoot, BridgeSerializationUtils.deserializeCoinbaseInformation(serializedCoinbaseInformation).getWitnessMerkleRoot());
     }
 
     private Address mockAddressHash160(String hash160) {
