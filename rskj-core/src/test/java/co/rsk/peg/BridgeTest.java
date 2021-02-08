@@ -34,9 +34,11 @@ import org.junit.Before;
 import org.junit.Test;
 
 import java.math.BigInteger;
+import java.time.ZonedDateTime;
 import java.util.ArrayList;
 
 import static org.ethereum.config.blockchain.upgrades.ConsensusRule.*;
+import static org.junit.Assert.fail;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
@@ -469,8 +471,8 @@ public class BridgeTest {
             true
         );
         byte[] result = bridge.execute(data);
-        
-        Assert.assertEquals(BridgeSupport.FAST_BRIDGE_GENERIC_ERROR, 
+
+        Assert.assertEquals(BridgeSupport.FAST_BRIDGE_GENERIC_ERROR,
             ((BigInteger)Bridge.REGISTER_FAST_BRIDGE_BTC_TRANSACTION.decodeResult(result)[0]).longValue());
     }
 
@@ -640,10 +642,177 @@ public class BridgeTest {
         Assert.assertTrue(bridge.getBtcBlockchainBestChainHeightOnlyAllowsLocalCalls(new Object[0]));
     }
 
+    @Test
+    public void activeAndRetiringFederationOnly_activeFederationIsNotFromFederateMember_retiringFederationIsNull_throwsVMException() throws Exception {
+        BridgeMethods.BridgeMethodExecutor executor = Bridge.activeAndRetiringFederationOnly(
+                null,
+                null
+        );
+
+        ActivationConfig activations = spy(ActivationConfigsForTest.genesis());
+        doReturn(true).when(activations).isActive(eq(RSKIP143), anyLong());
+
+        Federation activeFederation = new Federation(
+                FederationTestUtils.getFederationMembersFromPks(100, 200, 300, 400, 500, 600),
+                ZonedDateTime.parse("2017-06-10T02:30:01Z").toInstant(),
+                0L,
+                NetworkParameters.fromID(NetworkParameters.ID_REGTEST)
+        );
+
+        BridgeSupport bridgeSupportMock = mock(BridgeSupport.class);
+        doReturn(activeFederation).when(bridgeSupportMock).getActiveFederation();
+        doReturn(null).when(bridgeSupportMock).getRetiringFederation();
+
+        // RSK Address: FederationTestUtils -> ECKey.fromPrivate(BigInteger.valueOf(PK + 1))
+        ECKey key = ECKey.fromPrivate(BigInteger.valueOf(999));
+        Transaction rskTxMock = mock(Transaction.class);
+        doReturn(new RskAddress(key.getAddress())).when(rskTxMock).getSender();
+
+        Bridge bridge = getBridgeInstance(rskTxMock, bridgeSupportMock, activations);
+
+        try {
+            executor.execute(bridge, null);
+            fail("VMException should be thrown!");
+        } catch (VMException vme) {
+            Assert.assertEquals(
+                    "Sender is not part of the active or retiring federations, so he is not enabled to call the function 'null'",
+                    vme.getMessage()
+            );
+        }
+    }
+
+    @Test
+    public void activeAndRetiringFederationOnly_activeFederationIsNotFromFederateMember_retiringFederationIsNotNull_retiringFederationIsNotFromFederateMember_throwsVMException() throws Exception {
+        BridgeMethods.BridgeMethodExecutor executor = Bridge.activeAndRetiringFederationOnly(
+                null,
+                null
+        );
+
+        ActivationConfig activations = spy(ActivationConfigsForTest.genesis());
+        doReturn(true).when(activations).isActive(eq(RSKIP143), anyLong());
+
+        Federation activeFederation = new Federation(
+                FederationTestUtils.getFederationMembersFromPks(100, 200, 300, 400, 500, 600),
+                ZonedDateTime.parse("2017-06-10T02:30:01Z").toInstant(),
+                0L,
+                NetworkParameters.fromID(NetworkParameters.ID_REGTEST)
+        );
+        Federation retiringFederation = new Federation(
+                FederationTestUtils.getFederationMembersFromPks(101, 202, 303, 404, 505, 606),
+                ZonedDateTime.parse("2017-06-10T02:30:01Z").toInstant(),
+                0L,
+                NetworkParameters.fromID(NetworkParameters.ID_REGTEST)
+        );
+
+        BridgeSupport bridgeSupportMock = mock(BridgeSupport.class);
+        doReturn(activeFederation).when(bridgeSupportMock).getActiveFederation();
+        doReturn(retiringFederation).when(bridgeSupportMock).getRetiringFederation();
+
+        // RSK Address: FederationTestUtils -> ECKey.fromPrivate(BigInteger.valueOf(PK + 1))
+        ECKey key = ECKey.fromPrivate(BigInteger.valueOf(999));
+        Transaction rskTxMock = mock(Transaction.class);
+        doReturn(new RskAddress(key.getAddress())).when(rskTxMock).getSender();
+
+        Bridge bridge = getBridgeInstance(rskTxMock, bridgeSupportMock, activations);
+
+        try {
+            executor.execute(bridge, null);
+            fail("VMException should be thrown!");
+        } catch (VMException vme) {
+            Assert.assertEquals(
+                    "Sender is not part of the active or retiring federations, so he is not enabled to call the function 'null'",
+                    vme.getMessage()
+            );
+        }
+    }
+
+    @Test
+    public void activeAndRetiringFederationOnly_activeFederationIsFromFederateMember_OK() throws Exception {
+        BridgeMethods.BridgeMethodExecutor decorate = mock(
+                BridgeMethods.BridgeMethodExecutor.class
+        );
+        BridgeMethods.BridgeMethodExecutor executor = Bridge.activeAndRetiringFederationOnly(
+                decorate,
+                null
+        );
+
+        ActivationConfig activations = spy(ActivationConfigsForTest.genesis());
+        doReturn(true).when(activations).isActive(eq(RSKIP143), anyLong());
+
+        Federation activeFederation = new Federation(
+                FederationTestUtils.getFederationMembersFromPks(100, 200, 300, 400, 500, 600),
+                ZonedDateTime.parse("2017-06-10T02:30:01Z").toInstant(),
+                0L,
+                NetworkParameters.fromID(NetworkParameters.ID_REGTEST)
+        );
+
+        BridgeSupport bridgeSupportMock = mock(BridgeSupport.class);
+        doReturn(activeFederation).when(bridgeSupportMock).getActiveFederation();
+        doReturn(null).when(bridgeSupportMock).getRetiringFederation();
+
+        // RSK Address: FederationTestUtils -> ECKey.fromPrivate(BigInteger.valueOf(PK + 1))
+        ECKey key = ECKey.fromPrivate(BigInteger.valueOf(101));
+        Transaction rskTxMock = mock(Transaction.class);
+        doReturn(new RskAddress(key.getAddress())).when(rskTxMock).getSender();
+
+        Bridge bridge = getBridgeInstance(rskTxMock, bridgeSupportMock, activations);
+
+        executor.execute(bridge, null);
+
+        verify(bridgeSupportMock, times(1)).getActiveFederation();
+        verify(decorate, times(1)).execute(any(), any());
+    }
+
+    @Test
+    public void activeAndRetiringFederationOnly_activeFederationIsNotFromFederateMember_retiringFederationIsNotNull_retiringFederationIsFromFederateMember_OK() throws Exception {
+        BridgeMethods.BridgeMethodExecutor decorate = mock(
+                BridgeMethods.BridgeMethodExecutor.class
+        );
+        BridgeMethods.BridgeMethodExecutor executor = Bridge.activeAndRetiringFederationOnly(
+                decorate,
+                null
+        );
+
+        ActivationConfig activations = spy(ActivationConfigsForTest.genesis());
+        doReturn(true).when(activations).isActive(eq(RSKIP143), anyLong());
+
+        Federation activeFederation = new Federation(
+                FederationTestUtils.getFederationMembersFromPks(100, 200, 300, 400, 500, 600),
+                ZonedDateTime.parse("2017-06-10T02:30:01Z").toInstant(),
+                0L,
+                NetworkParameters.fromID(NetworkParameters.ID_REGTEST)
+        );
+        Federation retiringFederation = new Federation(
+                FederationTestUtils.getFederationMembersFromPks(101, 202, 303, 404, 505, 606),
+                ZonedDateTime.parse("2017-06-10T02:30:01Z").toInstant(),
+                0L,
+                NetworkParameters.fromID(NetworkParameters.ID_REGTEST)
+        );
+
+        BridgeSupport bridgeSupportMock = mock(BridgeSupport.class);
+        doReturn(activeFederation).when(bridgeSupportMock).getActiveFederation();
+        doReturn(retiringFederation).when(bridgeSupportMock).getRetiringFederation();
+
+        // RSK Address: FederationTestUtils -> ECKey.fromPrivate(BigInteger.valueOf(PK + 1))
+        ECKey key = ECKey.fromPrivate(BigInteger.valueOf(405));
+        Transaction rskTxMock = mock(Transaction.class);
+        doReturn(new RskAddress(key.getAddress())).when(rskTxMock).getSender();
+
+        Bridge bridge = getBridgeInstance(rskTxMock, bridgeSupportMock, activations);
+
+        executor.execute(bridge, null);
+
+        verify(bridgeSupportMock, times(1)).getActiveFederation();
+        verify(decorate, times(1)).execute(any(), any());
+    }
+
     /**
-     * Gets a bride instance mocking the transaction and BridgeSupportFactory
+     * Gets a bridge instance mocking the transaction and BridgeSupportFactory
+     *
+     * @param txMock                Provide the transaction to be used
      * @param bridgeSupportInstance Provide the bridgeSupport to be used
-     * @return
+     * @param activationConfig      Provide the activationConfig to be used
+     * @return Bridge instance
      */
     private Bridge getBridgeInstance(Transaction txMock, BridgeSupport bridgeSupportInstance, ActivationConfig activationConfig) {
         BridgeSupportFactory bridgeSupportFactoryMock = mock(BridgeSupportFactory.class);
