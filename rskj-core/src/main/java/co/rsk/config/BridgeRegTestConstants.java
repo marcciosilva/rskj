@@ -121,10 +121,6 @@ public class BridgeRegTestConstants extends BridgeConstants {
 
         lockingCapIncrementsMultiplier = 2;
 
-        minSecondsBetweenCallsReceiveHeader = 600;  // 10 minutes in Seconds
-
-        maxDepthBlockchainAccepted = 25;
-
         // Key generated with GenNodeKey using generator 'auth-increase_locking_cap'
         List<ECKey> increaseLockingCapAuthorizedKeys = Arrays.stream(new String[]{
                 "04450bbaab83ec48b3cb8fbb077c950ee079733041c039a8c4f1539e5181ca1a27589eeaf0fbf430e49d2909f14c767bf6909ad6845831f683416ee12b832e36ed"
@@ -136,9 +132,9 @@ public class BridgeRegTestConstants extends BridgeConstants {
         );
 
         btcHeightWhenBlockIndexActivates = 10;
-        maxDepthToSearchBlocksBelowIndexActivation = 1_000; //TODO define this value with Sergio
+        maxDepthToSearchBlocksBelowIndexActivation = 5;
 
-        erpFedActivationDelay = 1000;
+        erpFedActivationDelay = 500;
 
         // Keys generated with GenNodeKey using generators 'erp-fed-01' through 'erp-fed-05'
         erpFedPubKeysList = Arrays.stream(new String[]{
@@ -155,6 +151,9 @@ public class BridgeRegTestConstants extends BridgeConstants {
         // 9f72d27ba603cfab5a0201974a6783ca2476ec3d6b4e2625282c682e0e5f1c35
         // e1b17fcd0ef1942465eee61b20561b16750191143d365e71de08b33dd84a9788
         oldFederationAddress = "2N7ZgQyhFKm17RbaLqygYbS7KLrQfapyZzu";
+
+        minSecondsBetweenCallsReceiveHeader = 600;  // 10 minutes in seconds
+        maxDepthBlockchainAccepted = 25;
     }
 
     public static BridgeRegTestConstants getInstance() {

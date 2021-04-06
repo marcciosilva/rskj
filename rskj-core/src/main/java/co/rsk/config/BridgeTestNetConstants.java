@@ -129,10 +129,9 @@ public class BridgeTestNetConstants extends BridgeConstants {
         initialLockingCap = Coin.COIN.multiply(200); // 200 BTC
 
         btcHeightWhenBlockIndexActivates = 700_000; //TODO define this value when Iris activation height in RSK is determined
-        maxDepthToSearchBlocksBelowIndexActivation = 1_000; //TODO define this value with Sergio
+        maxDepthToSearchBlocksBelowIndexActivation = 4320; // 30 days in BTC blocks (considering 1 block every 10 minutes)
 
-        // TODO: These value is not real
-        erpFedActivationDelay = 5063;
+        erpFedActivationDelay = 52_560; // 1 year in BTC blocks (considering 1 block every 10 minutes)
 
         // TODO: WE NEED TO DEFINE THESE KEYS
         erpFedPubKeysList = new ArrayList<>();
@@ -143,7 +142,7 @@ public class BridgeTestNetConstants extends BridgeConstants {
         // e1b17fcd0ef1942465eee61b20561b16750191143d365e71de08b33dd84a9788
         oldFederationAddress = "2N7ZgQyhFKm17RbaLqygYbS7KLrQfapyZzu";
 
-        minSecondsBetweenCallsReceiveHeader = 600;  // 10 minutes in Seconds
+        minSecondsBetweenCallsReceiveHeader = 600;  // 10 minutes in seconds
         maxDepthBlockchainAccepted = 25;
     }
 
