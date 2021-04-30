@@ -1,0 +1,70 @@
+name: Reproducible build
+on: [push]
+
+jobs:
+  build-using-container:
+    runs-on: ubuntu-20.04
+    steps:
+      - name: Checkout rskj repo
+        uses: actions/checkout@v2
+      - name: Set rskj version
+        id: vars
+        run: echo ::set-output name=tag::${GITHUB_REF#refs/*/}
+      - name: Create Docker image
+        id: docker_build
+        uses: docker/build-push-action@v2
+        with:
+          context: ./
+          file: Dockerfile.reproducible
+          push: false
+          tags: rskj:${{ steps.vars.outputs.tag }}
+      - name: Check SHA256SUM
+        run: |
+          docker run --rm rskj:${{ steps.vars.outputs.tag }} bash -c 'sha256sum /code/rskj/rskj-core/build/libs/* | grep -v javadoc'
+      - name: Extract JAR from image
+        run: |
+          cid=$(docker run -d rskj:${{ steps.vars.outputs.tag }} /bin/true) && \
+          docker cp "$cid":/code/rskj/rskj-core/build/libs/ . && \
+          docker rm "$cid"
+      - name: Export artifacts
+        uses: actions/upload-artifact@v2
+        with:
+          name: rskj-with-container-${{ steps.vars.outputs.tag }}
+          path: libs/
+          if-no-files-found: error
+
+  build-without-container:
+    runs-on: ubuntu-20.04
+    container: 
+      image: openjdk@sha256:335627a2118556b3f412287e08ac7febb8ecc46325dc6b3570db56f32d33938f
+    steps:
+      - name: Install packages
+        run: |
+          apt-get update -y && apt-get install -y git curl gnupg
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Set rskj version
+        id: vars
+        run: echo ::set-output name=tag::${GITHUB_REF#refs/*/}
+      - name: Download Release key
+        run: |
+          gpg --keyserver https://secchannel.rsk.co/release.asc --recv-keys 1A92D8942171AFA951A857365DECF4415E3B8FA4
+      - name: Verify files integrity
+        run: |
+          gpg --verify --output SHA256SUMS SHA256SUMS.asc && sha256sum --check SHA256SUMS
+      - name: Build rskj
+        run: |
+          ./configure.sh && ./gradlew --no-daemon clean build -x test
+      - name: Calculate hashes
+        working-directory: rskj-core/build/libs
+        run: |
+          sha256sum * > SHA256SUMS
+      - name: Print hashes
+        run: |
+          cat rskj-core/build/libs/SHA256SUMS
+      - name: Export artifacts
+        uses: actions/upload-artifact@v2
+        with:
+          name: rskj-without-container-${{ steps.vars.outputs.tag }}
+          path: rskj-core/build/libs/
+          if-no-files-found: error
